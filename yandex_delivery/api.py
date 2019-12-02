@@ -3,7 +3,6 @@ import json
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-import requests
 from .exceptions import *
 from hashlib import md5
 
@@ -16,7 +15,7 @@ class DeliveryClient(object):
     API_URL = "https://delivery.yandex.ru/api"
     USER_AGENT = "YandexDeliveryClient/Python (https://github.com/daniilr/yandex-delivery-python)"
 
-    def __init__(self, client_id, sender_id, warehouse_ids=[], requisite_id=[], method_keys={}):
+    def __init__(self, client_id, sender_id, warehouse_ids=[], requisite_ids=[], method_keys={}):
         """
         Чтобы получить настройки, перейдите в интерфейсе сервиса на страницу
         настроек Интеграция --> API. Далее в блоке Настройки нажмите кнопку получить.
@@ -25,13 +24,13 @@ class DeliveryClient(object):
             client_id (int): идентификатор аккаунта в сервисе
             sender_id (int): идентификаторы и URL магазинов из аккаунта в сервисе
             warehouse_ids (list): идентификаторы складов из аккаунта в сервисе
-            requisite_id (list): идентификаторы реквизитов магазинов из аккаунта в сервисе
+            requisite_ids (list): идентификаторы реквизитов магазинов из аккаунта в сервисе
             method_keys (dict): ключ — название метода, значение — method_key
         """
         self.client_id = client_id
         self.sender_id = sender_id
         self.warehouse_ids = warehouse_ids
-        self.requisite_id = requisite_id
+        self.requisite_ids = requisite_ids
         self.method_keys = method_keys
 
     def get_values(self, data):
@@ -59,8 +58,8 @@ class DeliveryClient(object):
                 output += self.http_build_query(
                     new_params, convention % key + "[%s]")
             else:
-                key = quote(key)
                 val = quote(str(params[key]))
+                key = quote(key)
                 output = output + convention % key + "=" + val + "&"
 
         return output
@@ -77,7 +76,7 @@ class DeliveryClient(object):
             ApiException
         """
         if method not in self.method_keys:
-            raise AccessException("Method %s has method_key defined for it" % method)
+            raise AccessException("Method %s doesn't has method_key defined for it" % method)
         secret_key = self.method_keys[method]
         data = kwargs
         data['client_id'] = self.client_id
@@ -195,28 +194,52 @@ class DeliveryClient(object):
                             index_city=index_city, to_yd_warehouse=to_yd_warehouse, order_cost=order_cost,
                             assessed_value=assessed_value)
 
-    def create_order(self, recipient_first_name, recipient_middle_name, recipient_last_name,
-                     recipient_phone, recipient_email, order_weight, order_length, order_num,
-                     order_assessed_value, order_amount_prepaid, order_delivery_cost, is_manual_delivery_cost,
-                     deliverypoint_city, deliverypoint_street, deliverypoint_house, deliverypoint_index,
-                     delivery_delivery, delivery_direction, delivery_tariff, delivery_pickuppoint=None,
-                     delivery_to_yd_warehouse=1, delivery_interval=None, order_items=[],
-                     deliverypoint_housing="", deliverypoint_build="",
-                     deliverypoint_flat="", deliverypoint_geo_id=None, order_comment=""
-                     ):
-        return self.request("createOrder", recipient_first_name=recipient_first_name,
-                            recipient_middle_name=recipient_middle_name,
-                            recipient_last_name=recipient_last_name, recipient_phone=recipient_phone,
-                            recipient_email=recipient_email, order_weight=order_weight, order_length=order_length,
-                            order_num=order_num, order_assessed_value=order_assessed_value,
-                            order_amount_prepaid=order_amount_prepaid, order_delivery_cost=order_delivery_cost,
-                            is_manual_delivery_cost=is_manual_delivery_cost, deliverypoint_city=deliverypoint_city,
-                            deliverypoint_street=deliverypoint_street, deliverypoint_house=deliverypoint_house,
-                            deliverypoint_index=deliverypoint_index, delivery_delivery=delivery_delivery,
-                            delivery_direction=delivery_direction, delivery_tariff=delivery_tariff,
-                            delivery_pickuppoint=delivery_pickuppoint,
-                            delivery_to_yd_warehouse=delivery_to_yd_warehouse, delivery_interval=delivery_interval,
-                            order_items=order_items, deliverypoint_housing=deliverypoint_housing,
-                            deliverypoint_build=deliverypoint_build, deliverypoint_flat=deliverypoint_flat,
-                            deliverypoint_geo_id=deliverypoint_geo_id, order_comment=order_comment,
-                            order_requisite=self.requisite_id, order_warehouse=self.warehouse_ids)
+    def create_order(self, **kwargs):
+        """
+        Arguments:
+        order_num=<номер заказа в магазине>
+        order_weight=<вес заказа>
+        order_length=<длина заказа>
+        order_width=<ширина заказа>
+        order_height=<высота заказа>
+        order_requisite=<идентификатор реквизитов магазина>
+        order_warehouse=<идентификатор склада>
+        order_comment=<дополнительное описание заказа>
+        order_assessed_value=<объявленная ценность>
+        order_amount_prepaid=<сумма предоплаты по заказу>
+        order_delivery_cost=<стоимость доставки>
+        is_manual_delivery_cost=<определение стоимости доставки>
+        recipient%5Bfirst_name%5D=<имя получателя>
+        recipient%5Bmiddle_name%5D=<отчество получателя>
+        recipient%5Blast_name%5D=<фамилия получателя>
+        recipient%5Bphone%5D=<номер телефона получателя>
+        recipient%5Bemail%5D=<адрес электронной почты получателя>
+        deliverypoint%5Bcity%5D=<адрес получателя>
+        deliverypoint%5Bgeo_id%5D=<идентификатор населенного пункта>
+        deliverypoint%5Bstreet%5D=<название улицы>
+        deliverypoint%5Bhouse%5D=<номер дома>
+        deliverypoint%5Bfloor%5D=<номер квартиры>
+        deliverypoint%5Bhousing%5D=<номер корпуса>
+        deliverypoint%5Bindex%5D=<индекс>
+        delivery%5Bdelivery%5D=<идентификатор службы доставки>
+        delivery%5Bdirection%5D=<идентификатор населенного пункта>
+        delivery%5Btariff%5D=<идентификатор тарифа доставки>
+        delivery%5Bpickuppoint%5D=<идентификатор пункта выдачи>
+        delivery%5Bto_yd_warehouse%5D=<склад отгрузки>
+        order_items%5Borderitem_article%5D=<артикул товара>
+        order_items%5Borderitem_name%5D=<наименование товара>
+        order_items%5Borderitem_quantity%5D=<количество товара>
+        order_items%5Borderitem_cost%5D=<цена товара>
+        order_items%5Borderitem_vat_value%5D=<ставка налога на добавленную стоимость>
+        """
+        data = dict()
+        for k, v in kwargs.items():
+            if v is None:
+                continue
+            data[k] = v
+        if not 'order_requisite' in data:
+            data['order_requisite'] = self.requisite_ids[0]
+        if not 'order_warehouse' in data:
+            data['order_warehouse'] = self.warehouse_ids[0]
+
+        return self.request("createOrder", **data)
